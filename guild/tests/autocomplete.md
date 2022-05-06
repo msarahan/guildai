@@ -492,6 +492,7 @@ to enter a value for flag after the equals sign.
 If a project has a default operation, flags are listed for it.
 
     >>> run_ac("flags", [])
+    !!no-colon-wordbreak
     noise=
     x=
     !!nospace
@@ -499,12 +500,14 @@ If a project has a default operation, flags are listed for it.
 With incomplete:
 
     >>> run_ac("flags", [], "x")
+    !!no-colon-wordbreak
     x=
     !!nospace
 
 Provide an explicit operation.
 
     >>> run_ac("flags", ["echo"])
+    !!no-colon-wordbreak
     x=
     y=
     z=

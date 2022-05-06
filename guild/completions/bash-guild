@@ -5,6 +5,7 @@ _guild_completion() {
 
     response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=$COMP_CWORD _GUILD_COMPLETE=bash_complete $1)
 
+    COMPREPLY=()
     COMP_WORDBREAKS='"'"'"'><=;|&(: '  # Reset as can be modified below.
     for completion in $response; do
         IFS=',' read type value <<< "$completion"
@@ -19,10 +20,8 @@ _guild_completion() {
             continue
         fi
         if [[ $type == 'dir' ]]; then
-            COMPREPLY=()
             compopt -o dirnames
         elif [[ $type == 'file' ]]; then
-            COMPREPLY=()
             compopt -o default
         elif [[ $type == 'plain' ]]; then
             COMPREPLY+=($value)

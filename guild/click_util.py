@@ -375,7 +375,7 @@ def completion_opnames(names):
 
 
 def completion_nospace():
-    if os.getenv("_GUILD_COMPLETE", "") != "" and _current_shell() == "bash":
+    if os.getenv("_GUILD_COMPLETE", "") != "" and _current_shell() in {"bash", "zsh"}:
         return ["!!nospace"]
     else:
         return []

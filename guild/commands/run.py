@@ -52,24 +52,57 @@ def _ac_flag(ctx, _, incomplete):
         return _ac_batch_files(ctx, _, incomplete)
 
     run_args = click_util.Args(**ctx.params)
+    # bash returns this as a list of all arguments. They are split by any equals sign,
+    #    and any trailing equals sign is stripped.
+    # zsh returns this as a list of any "completed" arguments - ones that have
+    #    the three parts: name=value. The remainder is given as a raw string, without stripping
+    flags = list(getattr(run_args, "flags", []))
     _ensure_log_init()
     opdef = _ac_opdef(run_args.opspec)
     if not opdef:
         return []
 
+    flags = incomplete.split("=")
+
+    if incomplete and incomplete[-1] == "=":
+        incomplete = incomplete[:-1]
+        flags.append(incomplete)
+
     # completed flags come in 3's - the name, the equals sign, the value.
     # If we have a even division, we have no incomplete flag. Otherwise, take
     # the end element as the incomplete flag.
-    if len(run_args.flags) % 3:
-        incomplete = run_args.flags[-1]
+    if flags and len(flags) % 3:
+        incomplete = flags[-1]
 
     if "=" in incomplete:
         return _ac_flag_choices(incomplete, opdef)
 
-    used_flags = run_args.flags[::3]
+    # bash breaks up expressions, but zsh does not. Make the zsh
+    #    arg list act similarly to bash.
+    zsh_flags = []
+    if flags and "=" in flags[0]:
+        zsh_flags = flags[:]
+    elif not flags and len(incomplete.split("=", 1)) == 2:
+        zsh_flags = [incomplete]
+    flags = []
+    for flag in zsh_flags:
+        flag_parts = flag.split("=", 1)
+        if len(flag_parts) == 2:
+            flags.extend([flag_parts[0], "=", flag_parts[1]])
+        else:
+            flags.append(flag_parts[0])
+
+    # every third element is a flag name. The value may or may not be there for the last flag.
+    used_flags = flags[::3]
     unused_flags = sorted([f.name for f in opdef.flags if f.name not in used_flags])
-    flags_ac = [f for f in unused_flags if f.startswith(incomplete)]
-    return ["%s=" % f for f in flags_ac] + click_util.completion_nospace()
+    flags_ac = [f for f in unused_flags if (not incomplete or f.startswith(incomplete))]
+    # because opnames occur before the flags, we need to disable colon wordbreaks
+    # when completing flags. This is specific to bash.
+    result = (
+        click_util.completion_opnames(["%s=" % f for f in flags_ac])
+        + click_util.completion_nospace()
+    )
+    return result
 
 
 def _ensure_log_init():
@@ -102,7 +135,9 @@ def _ac_flag_choices(incomplete, opdef):
     if not flagdef or (not flagdef.choices and _maybe_filename_type(flagdef)):
         return click_util.completion_filename()
     choices = _flagdef_choices(flagdef)
-    return [val for val in choices if val.startswith(flag_val_incomplete)]
+    return [val for val in choices if val.startswith(flag_val_incomplete)] or [
+        incomplete
+    ]
 
 
 def _maybe_filename_type(flagdef):
@@ -119,15 +154,6 @@ def _flagdef_choices(flagdef):
         return ["true", "false"]
     else:
         return []
-
-
-def _ac_used_flags(flag_args, opdef, incomplete):
-    from . import run_impl
-
-    flag_vals, _batch_files = run_impl.split_flag_args(
-        flag_args, opdef, incomplete=incomplete, raise_parse_errors=False
-    )
-    return flag_vals
 
 
 def _ac_run(ctx, _, incomplete):

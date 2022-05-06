@@ -44,7 +44,7 @@ def main(args):
 
 def _current_shell():
     parent_shell = os.getenv("GUILD_SHELL")
-    known_shells = {"bash", "zsh", "fish", "dash", "sh"}
+    known_shells = {"bash", "zsh", "fish"}
     if not parent_shell:
         parent_shell = os.path.basename(psutil.Process().parent().exe())
     if parent_shell not in known_shells:
@@ -53,8 +53,15 @@ def _current_shell():
         if parent_of_parent in known_shells:
             parent_shell = parent_of_parent
         else:
-            log.warning("unknown shell '%s', assuming %s", parent_shell, DEFAULT_SHELL)
-            parent_shell = DEFAULT_SHELL
+            if os.getenv("BASH"):
+                parent_shell = "bash"
+            elif os.getenv("ZSH_NAME"):
+                parent_shell = "zsh"
+            else:
+                log.warning(
+                    "unknown shell '%s', assuming %s", parent_shell, DEFAULT_SHELL
+                )
+                parent_shell = DEFAULT_SHELL
     return parent_shell
 
 
